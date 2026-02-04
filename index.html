@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Tic Tac Toe Neon – Online Ready</title>
+<title>Tic Tac Toe Neon – Online Fixed</title>
 
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
@@ -24,8 +24,6 @@ button{background:cyan;color:black;font-weight:bold;cursor:pointer;box-shadow:0 
 .cell.win{background:cyan;color:black;box-shadow:0 0 25px cyan}
 .status{text-align:center;font-weight:bold;text-shadow:0 0 8px cyan;margin:6px 0}
 .hidden{display:none}
-.leader{font-size:12px;margin-top:8px;opacity:.9}
-.credit{text-align:center;margin-top:10px;letter-spacing:3px;opacity:.7}
 .roominfo{text-align:center;margin-top:6px}
 .roomcode{font-weight:bold;letter-spacing:2px;text-shadow:0 0 8px cyan}
 </style>
@@ -33,47 +31,29 @@ button{background:cyan;color:black;font-weight:bold;cursor:pointer;box-shadow:0 
 <body>
 
 <div class="game-box">
-<h1>⚡ TIC TAC TOE ⚡</h1>
+<h1>⚡ TIC TAC TOE ONLINE ⚡</h1>
 
 <div class="row">
   <select id="mode">
-    <option value="pvp">Player vs Player</option>
-    <option value="bot">Player vs Bot</option>
     <option value="online">Online Firebase</option>
   </select>
-  <select id="difficulty" class="hidden">
-    <option value="easy">Easy Bot</option>
-    <option value="hard">Hard Bot</option>
-  </select>
 </div>
 
-<div class="row">
-  <input id="nameX" placeholder="Nama Player A"/>
-  <input id="nameO" placeholder="Nama Player B"/>
-</div>
-
-<div class="row hidden" id="onlineBox">
+<div class="row hidden" id="onlineBox" style="display:flex">
   <button onclick="createRoom()">Create Room</button>
   <input id="roomCodeInput" placeholder="Room Code"/>
   <button onclick="joinRoom()">Join</button>
 </div>
 
 <div id="roomInfo" class="roominfo hidden">
-  <div style="font-size:12px;opacity:.8">Room Code:</div>
+  <div>Room Code:</div>
   <div id="roomLabel" class="roomcode">-</div>
-  <button onclick="copyRoom()">Copy Code</button>
 </div>
 
-<div class="status" id="status">👤 Player A vs Player B 👤 | Giliran: X</div>
+<div class="status" id="status">Belum join room</div>
 <div class="board" id="board"></div>
 
-<div class="row">
-  <button onclick="resetBoard()">Reset</button>
-  <button onclick="resetLocalRank()">Reset Rank</button>
-</div>
-
-<div class="leader" id="leaderLocal"></div>
-<div class="credit">Made By Relz</div>
+<button onclick="resetBoard()">Reset Papan</button>
 </div>
 
 <script>
@@ -88,18 +68,14 @@ const db = firebase.database();
 
 const boardEl=document.getElementById("board");
 const statusEl=document.getElementById("status");
-const modeEl=document.getElementById("mode");
-const diffEl=document.getElementById("difficulty");
-const onlineBox=document.getElementById("onlineBox");
-const leaderLocal=document.getElementById("leaderLocal");
-const nameX=document.getElementById("nameX");
-const nameO=document.getElementById("nameO");
 const roomInfo=document.getElementById("roomInfo");
 const roomLabel=document.getElementById("roomLabel");
 const roomCodeInput=document.getElementById("roomCodeInput");
 
 let board=["","","","","","","","",""];
-let turn="X",gameActive=true,roomId=null;
+let turn="X";
+let roomId=null;
+let playerSymbol=null;
 
 const wins=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
 
@@ -110,120 +86,85 @@ for(let i=0;i<9;i++){
   boardEl.appendChild(b);
 }
 
-modeEl.onchange=()=>{
-  diffEl.classList.toggle("hidden",modeEl.value!=="bot");
-  onlineBox.classList.toggle("hidden",modeEl.value!=="online");
-  updateLabel();
-};
-nameX.oninput=nameO.oninput=updateLabel;
-
-function updateLabel(){
-  let label="";
-  if(modeEl.value==="bot"){
-    label="👤 Player vs Bot 👤";
-  }else{
-    const a=nameX.value||"Player A";
-    const b=nameO.value||"Player B";
-    label=`👤 ${a} vs ${b} 👤`;
-  }
-  statusEl.textContent=label+" | Giliran: "+turn;
-}
-
-function play(i){
-  if(!gameActive||board[i])return;
-  board[i]=turn;
-  render();
-  if(checkWin()){
-    statusEl.textContent="🔥 MENANG: "+turn;
-    saveLocalWin(turn);
-    gameActive=false; syncRoom(); return;
-  }
-  if(!board.includes("")){
-    statusEl.textContent="🤝 SERI!";
-    gameActive=false; syncRoom(); return;
-  }
-  turn=turn==="X"?"O":"X";
-  updateLabel();
-  if(modeEl.value==="bot" && turn==="O") botMove();
-  syncRoom();
-}
-
-function render(){document.querySelectorAll(".cell").forEach((c,i)=>c.textContent=board[i]);}
-function checkWin(){return wins.some(p=>p.every(i=>board[i]===turn));}
-
-function resetBoard(){
-  board=["","","","","","","","",""];
-  turn="X";gameActive=true;
-  document.querySelectorAll(".cell").forEach(c=>{c.textContent="";c.classList.remove("win")});
-  updateLabel(); syncRoom();
-}
-
-// Leaderboard Lokal
-function saveLocalWin(p){
-  const name = p==="X" ? (nameX.value||"Player A") : (nameO.value||"Player B");
-  let data=JSON.parse(localStorage.getItem("leaderboard")||"{}");
-  data[name]=(data[name]||0)+1;
-  localStorage.setItem("leaderboard",JSON.stringify(data));
-  renderLocalLB();
-}
-function renderLocalLB(){
-  let data=JSON.parse(localStorage.getItem("leaderboard")||"{}");
-  let arr=Object.entries(data).sort((a,b)=>b[1]-a[1]).slice(0,5);
-  leaderLocal.innerHTML="🏆 Rank Lokal:<br>"+arr.map((e,i)=>`${i+1}. ${e[0]} - ${e[1]} win`).join("<br>");
-}
-renderLocalLB();
-function resetLocalRank(){localStorage.removeItem("leaderboard");renderLocalLB();}
-
-// BOT
-function botMove(){
-  let empty=board.map((v,i)=>v===""?i:null).filter(v=>v!==null);
-  let move = diffEl.value==="easy"
-    ? empty[Math.floor(Math.random()*empty.length)]
-    : empty[0];
-  setTimeout(()=>play(move),400);
-}
-
-// ONLINE
 function genRoomCode(){
   return "ROOM-" + Math.random().toString(36).substring(2,6).toUpperCase();
 }
+
 function createRoom(){
   roomId=genRoomCode();
+  playerSymbol="X";
   roomLabel.textContent=roomId;
   roomInfo.classList.remove("hidden");
-  db.ref("rooms/"+roomId).set({board,turn,createdAt:Date.now()});
+
+  db.ref("rooms/"+roomId).set({
+    board,
+    turn,
+    players: { X: true }
+  });
+
   listenRoom();
-  alert("Room dibuat: "+roomId);
+  alert("Room dibuat: "+roomId+"\nKamu = X");
 }
+
 function joinRoom(){
   const code=roomCodeInput.value.trim().toUpperCase();
   if(!code) return alert("Masukin kode room!");
   roomId=code;
-  roomLabel.textContent=roomId;
-  roomInfo.classList.remove("hidden");
-  db.ref("rooms/"+roomId).once("value").then(s=>{
-    if(!s.exists()) alert("Room tidak ditemukan!");
-    else listenRoom();
+
+  db.ref("rooms/"+roomId).once("value").then(snap=>{
+    if(!snap.exists()) return alert("Room tidak ditemukan!");
+    const data=snap.val();
+    if(data.players && data.players.O){
+      alert("Room penuh!");
+      return;
+    }
+    playerSymbol="O";
+    db.ref("rooms/"+roomId+"/players/O").set(true);
+    roomLabel.textContent=roomId;
+    roomInfo.classList.remove("hidden");
+    listenRoom();
+    alert("Join room berhasil! Kamu = O");
   });
 }
-function syncRoom(){
-  if(!roomId||modeEl.value!=="online") return;
-  db.ref("rooms/"+roomId).set({board,turn});
-}
+
 function listenRoom(){
   db.ref("rooms/"+roomId).on("value",snap=>{
     const d=snap.val(); if(!d) return;
-    board=d.board||board; turn=d.turn||turn;
+    board=d.board||board;
+    turn=d.turn||turn;
     render();
-    statusEl.textContent="🌐 Room: "+roomId+" | Giliran: "+turn;
+    statusEl.textContent=`Room: ${roomId} | Kamu: ${playerSymbol} | Giliran: ${turn}`;
   });
 }
-function copyRoom(){
-  navigator.clipboard.writeText(roomId);
-  alert("Kode room di-copy: "+roomId);
+
+function syncRoom(){
+  if(!roomId) return;
+  db.ref("rooms/"+roomId).update({ board, turn });
 }
 
-updateLabel();
+function play(i){
+  if(!roomId) return alert("Create/Join room dulu!");
+  if(board[i]!=="" || turn!==playerSymbol) return;
+  board[i]=playerSymbol;
+  if(checkWin(playerSymbol)){
+    statusEl.textContent="🔥 MENANG: "+playerSymbol;
+  }
+  turn = (turn==="X"?"O":"X");
+  syncRoom();
+}
+
+function render(){
+  document.querySelectorAll(".cell").forEach((c,i)=>c.textContent=board[i]);
+}
+function checkWin(p){
+  return wins.some(w=>w.every(i=>board[i]===p));
+}
+function resetBoard(){
+  if(!roomId) return;
+  board=["","","","","","","","",""];
+  turn="X";
+  syncRoom();
+}
 </script>
 </body>
 </html>
