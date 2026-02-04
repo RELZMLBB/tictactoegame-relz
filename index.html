@@ -24,9 +24,9 @@ body{
   box-shadow:0 0 30px cyan;animation:rgb 6s linear infinite;width:390px
 }
 h1{text-align:center;animation:glow 2s infinite}
-.row{display:flex;gap:6px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 input,select,button{
-  flex:1;padding:8px;border-radius:8px;border:none;margin:4px 0
+  width:100%;padding:8px;border-radius:8px;border:none;margin:4px 0
 }
 button{background:cyan;color:black;font-weight:bold;cursor:pointer;box-shadow:0 0 10px cyan}
 .board{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:12px 0}
@@ -62,15 +62,14 @@ button{background:cyan;color:black;font-weight:bold;cursor:pointer;box-shadow:0 
   </select>
 </div>
 
-<div class="row">
-  <input id="nameX" placeholder="Nama Player X (PVP / Online)">
-  <input id="nameO" placeholder="Nama Player O (PVP)">
+<div class="row" id="nameRow">
+  <input id="nameX" placeholder="Nama Player A">
+  <input id="nameO" placeholder="Nama Player B">
 </div>
 
 <div class="row hidden" id="onlineBox">
   <button onclick="createRoom()">Create Room</button>
   <input id="roomCode" placeholder="Room Code">
-  <button onclick="joinRoom()">Join</button>
 </div>
 
 <div class="status" id="status">Giliran: X</div>
@@ -103,6 +102,7 @@ const clickSound=document.getElementById("clickSound");
 const winSound=document.getElementById("winSound");
 const nameX=document.getElementById("nameX");
 const nameO=document.getElementById("nameO");
+const nameRow=document.getElementById("nameRow");
 
 let board=["","","","","","","","",""];
 let turn="X",gameActive=true,roomId=null,online=false;
@@ -118,6 +118,7 @@ for(let i=0;i<9;i++){
 modeEl.onchange=()=>{
   diffEl.classList.toggle("hidden",modeEl.value!=="bot");
   onlineBox.classList.toggle("hidden",modeEl.value!=="online");
+  nameO.classList.toggle("hidden",modeEl.value!=="pvp");
   online = modeEl.value==="online";
 };
 
@@ -196,11 +197,6 @@ function createRoom(){
   roomId="ROOM"+Math.floor(Math.random()*9999);
   db.ref("rooms/"+roomId).set({board,turn,nameX:nameX.value});
   alert("Room Code: "+roomId);
-  listenRoom();
-}
-function joinRoom(){
-  if(!nameX.value){ alert("Isi nama kamu dulu!"); return; }
-  roomId=document.getElementById("roomCode").value;
   listenRoom();
 }
 function syncRoom(){
