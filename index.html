@@ -1,50 +1,33 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Tic Tac Toe Neon – Final Fix</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Tic Tac Toe Neon – Online Ready</title>
 
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
 
 <style>
-@keyframes rgb {0%{filter:hue-rotate(0)}100%{filter:hue-rotate(360deg)}}
-@keyframes glow {0%{text-shadow:0 0 6px cyan}50%{text-shadow:0 0 18px cyan}100%{text-shadow:0 0 6px cyan}}
-
+@keyframes rgb{0%{filter:hue-rotate(0)}100%{filter:hue-rotate(360deg)}}
+@keyframes glow{0%{text-shadow:0 0 6px cyan}50%{text-shadow:0 0 18px cyan}100%{text-shadow:0 0 6px cyan}}
 *{box-sizing:border-box}
-
-body{
-  margin:0;min-height:100vh;display:flex;justify-content:center;align-items:center;
-  background:radial-gradient(circle at top,#020024,#090979,#00d4ff);
-  font-family:Arial;color:white
-}
-.game-box{
-  padding:20px;border-radius:18px;background:rgba(0,0,0,.7);
-  box-shadow:0 0 30px cyan;animation:rgb 6s linear infinite;width:390px
-}
+body{margin:0;min-height:100vh;display:flex;justify-content:center;align-items:center;background:radial-gradient(circle at top,#020024,#090979,#00d4ff);font-family:Arial;color:white}
+.game-box{padding:20px;border-radius:18px;background:rgba(0,0,0,.7);box-shadow:0 0 30px cyan;animation:rgb 6s linear infinite;width:390px}
 h1{text-align:center;animation:glow 2s infinite}
-
 .row{display:flex;gap:6px}
 .row input{width:50%}
-
-input,select,button{
-  padding:10px;border-radius:10px;border:none;margin:4px 0;
-  background:#020024;color:cyan;box-shadow:inset 0 0 10px cyan
-}
+input,select,button{padding:10px;border-radius:10px;border:none;margin:4px 0;background:#020024;color:cyan;box-shadow:inset 0 0 10px cyan}
 button{background:cyan;color:black;font-weight:bold;cursor:pointer;box-shadow:0 0 10px cyan}
-
 .board{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:12px 0}
-.cell{
-  height:90px;font-size:40px;border:none;border-radius:12px;
-  background:#020024;color:cyan;box-shadow:inset 0 0 12px cyan,0 0 10px cyan;cursor:pointer;
-}
+.cell{height:90px;font-size:40px;border:none;border-radius:12px;background:#020024;color:cyan;box-shadow:inset 0 0 12px cyan,0 0 10px cyan;cursor:pointer}
 .cell.win{background:cyan;color:black;box-shadow:0 0 25px cyan}
-
 .status{text-align:center;font-weight:bold;text-shadow:0 0 8px cyan;margin:6px 0}
 .hidden{display:none}
 .leader{font-size:12px;margin-top:8px;opacity:.9}
 .credit{text-align:center;margin-top:10px;letter-spacing:3px;opacity:.7}
+.roominfo{text-align:center;margin-top:6px}
+.roomcode{font-weight:bold;letter-spacing:2px;text-shadow:0 0 8px cyan}
 </style>
 </head>
 <body>
@@ -59,20 +42,26 @@ button{background:cyan;color:black;font-weight:bold;cursor:pointer;box-shadow:0 
     <option value="online">Online Firebase</option>
   </select>
   <select id="difficulty" class="hidden">
-    <option value="easy">Easy</option>
-    <option value="hard">Hard</option>
+    <option value="easy">Easy Bot</option>
+    <option value="hard">Hard Bot</option>
   </select>
 </div>
 
 <div class="row">
-  <input id="nameX" placeholder="Nama Player A">
-  <input id="nameO" placeholder="Nama Player B">
+  <input id="nameX" placeholder="Nama Player A"/>
+  <input id="nameO" placeholder="Nama Player B"/>
 </div>
 
 <div class="row hidden" id="onlineBox">
   <button onclick="createRoom()">Create Room</button>
-  <input id="roomCode" placeholder="Room Code">
+  <input id="roomCodeInput" placeholder="Room Code"/>
   <button onclick="joinRoom()">Join</button>
+</div>
+
+<div id="roomInfo" class="roominfo hidden">
+  <div style="font-size:12px;opacity:.8">Room Code:</div>
+  <div id="roomLabel" class="roomcode">-</div>
+  <button onclick="copyRoom()">Copy Code</button>
 </div>
 
 <div class="status" id="status">👤 Player A vs Player B 👤 | Giliran: X</div>
@@ -105,6 +94,9 @@ const onlineBox=document.getElementById("onlineBox");
 const leaderLocal=document.getElementById("leaderLocal");
 const nameX=document.getElementById("nameX");
 const nameO=document.getElementById("nameO");
+const roomInfo=document.getElementById("roomInfo");
+const roomLabel=document.getElementById("roomLabel");
+const roomCodeInput=document.getElementById("roomCodeInput");
 
 let board=["","","","","","","","",""];
 let turn="X",gameActive=true,roomId=null;
@@ -123,7 +115,6 @@ modeEl.onchange=()=>{
   onlineBox.classList.toggle("hidden",modeEl.value!=="online");
   updateLabel();
 };
-
 nameX.oninput=nameO.oninput=updateLabel;
 
 function updateLabel(){
@@ -142,34 +133,32 @@ function play(i){
   if(!gameActive||board[i])return;
   board[i]=turn;
   render();
-
   if(checkWin()){
     statusEl.textContent="🔥 MENANG: "+turn;
     saveLocalWin(turn);
-    gameActive=false; return;
+    gameActive=false; syncRoom(); return;
   }
   if(!board.includes("")){
     statusEl.textContent="🤝 SERI!";
-    gameActive=false; return;
+    gameActive=false; syncRoom(); return;
   }
   turn=turn==="X"?"O":"X";
   updateLabel();
+  if(modeEl.value==="bot" && turn==="O") botMove();
+  syncRoom();
 }
 
-function render(){
-  document.querySelectorAll(".cell").forEach((c,i)=>c.textContent=board[i]);
-}
-function checkWin(){
-  return wins.some(p=>p.every(i=>board[i]===turn));
-}
+function render(){document.querySelectorAll(".cell").forEach((c,i)=>c.textContent=board[i]);}
+function checkWin(){return wins.some(p=>p.every(i=>board[i]===turn));}
+
 function resetBoard(){
   board=["","","","","","","","",""];
   turn="X";gameActive=true;
   document.querySelectorAll(".cell").forEach(c=>{c.textContent="";c.classList.remove("win")});
-  updateLabel();
+  updateLabel(); syncRoom();
 }
 
-// Leaderboard lokal
+// Leaderboard Lokal
 function saveLocalWin(p){
   const name = p==="X" ? (nameX.value||"Player A") : (nameO.value||"Player B");
   let data=JSON.parse(localStorage.getItem("leaderboard")||"{}");
@@ -183,13 +172,58 @@ function renderLocalLB(){
   leaderLocal.innerHTML="🏆 Rank Lokal:<br>"+arr.map((e,i)=>`${i+1}. ${e[0]} - ${e[1]} win`).join("<br>");
 }
 renderLocalLB();
-function resetLocalRank(){
-  localStorage.removeItem("leaderboard");
-  renderLocalLB();
+function resetLocalRank(){localStorage.removeItem("leaderboard");renderLocalLB();}
+
+// BOT
+function botMove(){
+  let empty=board.map((v,i)=>v===""?i:null).filter(v=>v!==null);
+  let move = diffEl.value==="easy"
+    ? empty[Math.floor(Math.random()*empty.length)]
+    : empty[0];
+  setTimeout(()=>play(move),400);
+}
+
+// ONLINE
+function genRoomCode(){
+  return "ROOM-" + Math.random().toString(36).substring(2,6).toUpperCase();
+}
+function createRoom(){
+  roomId=genRoomCode();
+  roomLabel.textContent=roomId;
+  roomInfo.classList.remove("hidden");
+  db.ref("rooms/"+roomId).set({board,turn,createdAt:Date.now()});
+  listenRoom();
+  alert("Room dibuat: "+roomId);
+}
+function joinRoom(){
+  const code=roomCodeInput.value.trim().toUpperCase();
+  if(!code) return alert("Masukin kode room!");
+  roomId=code;
+  roomLabel.textContent=roomId;
+  roomInfo.classList.remove("hidden");
+  db.ref("rooms/"+roomId).once("value").then(s=>{
+    if(!s.exists()) alert("Room tidak ditemukan!");
+    else listenRoom();
+  });
+}
+function syncRoom(){
+  if(!roomId||modeEl.value!=="online") return;
+  db.ref("rooms/"+roomId).set({board,turn});
+}
+function listenRoom(){
+  db.ref("rooms/"+roomId).on("value",snap=>{
+    const d=snap.val(); if(!d) return;
+    board=d.board||board; turn=d.turn||turn;
+    render();
+    statusEl.textContent="🌐 Room: "+roomId+" | Giliran: "+turn;
+  });
+}
+function copyRoom(){
+  navigator.clipboard.writeText(roomId);
+  alert("Kode room di-copy: "+roomId);
 }
 
 updateLabel();
 </script>
-
 </body>
-  </html>
+</html>
