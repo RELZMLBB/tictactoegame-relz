@@ -3,73 +3,77 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Tic Tac Toe Neon Online</title>
+<title>Tic Tac Toe Neon Global Rank</title>
 
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
 
 <style>
 @keyframes rgb{0%{filter:hue-rotate(0)}100%{filter:hue-rotate(360deg)}}
+@keyframes creditGlow{
+  0%{text-shadow:0 0 6px rgba(0,255,247,.5),0 0 12px rgba(0,255,247,.4)}
+  50%{text-shadow:0 0 18px rgba(0,255,247,1),0 0 32px rgba(0,255,247,.9)}
+  100%{text-shadow:0 0 6px rgba(0,255,247,.5),0 0 12px rgba(0,255,247,.4)}
+}
 body{
   margin:0;min-height:100vh;display:flex;justify-content:center;align-items:center;
   background:radial-gradient(circle at top,#020024,#090979,#00d4ff);
   font-family:Arial;color:white
 }
 .game-box{
-  width:380px;padding:20px;border-radius:18px;
+  width:400px;padding:20px;border-radius:18px;
   background:rgba(0,0,0,.75);
   box-shadow:0 0 30px cyan;animation:rgb 6s linear infinite
 }
 h1{text-align:center;text-shadow:0 0 15px cyan}
 .row{display:flex;gap:8px}
-input,select,button{
-  padding:8px;border-radius:8px;border:none;margin:4px 0;width:100%
-}
+input,select,button{padding:8px;border-radius:8px;border:none;margin:4px 0;width:100%}
 .row input{width:50%;box-sizing:border-box}
 button{background:cyan;color:black;font-weight:bold;cursor:pointer;box-shadow:0 0 10px cyan}
 .board{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:12px 0}
 .cell{
-  height:90px;font-size:40px;border:none;border-radius:12px;
-  background:#020024;color:cyan;
-  box-shadow:inset 0 0 12px cyan,0 0 10px cyan;
-  cursor:pointer;transition:.15s
+  height:90px;font-size:40px;border:none;border-radius:12px;background:#020024;color:cyan;
+  box-shadow:inset 0 0 12px cyan,0 0 10px cyan;cursor:pointer;transition:.15s
 }
 .cell:hover{transform:scale(1.08)}
-.status{text-align:center;font-weight:bold}
+.status{text-align:center;font-weight:bold;margin:6px 0}
 .hidden{display:none}
+.rank{font-size:12px;margin-top:8px;opacity:.9}
+.credit{
+  margin-top:10px;text-align:center;font-weight:700;letter-spacing:3px;
+  color:#00fff7;animation:creditGlow 2.5s ease-in-out infinite;user-select:none;opacity:.9
+}
 </style>
 </head>
 <body>
 
 <div class="game-box">
-  <h1>⚡ TIC TAC TOE ⚡</h1>
+<h1>⚡ TIC TAC TOE ⚡</h1>
 
-  <select id="mode">
-    <option value="pvp">Player vs Player</option>
-    <option value="bot">Player vs Bot</option>
-    <option value="online">Online Firebase</option>
-  </select>
+<select id="mode">
+  <option value="pvp">Player vs Player</option>
+  <option value="bot">Player vs Bot</option>
+  <option value="online">Online Firebase</option>
+</select>
 
-  <select id="difficulty" class="hidden">
-    <option value="easy">Easy Bot</option>
-    <option value="hard">Hard Bot</option>
-  </select>
+<div class="row">
+  <input id="nameX" placeholder="👤 Nama Kamu">
+  <input id="nameO" placeholder="👤 Nama Lawan (PvP)">
+</div>
 
-  <div class="row">
-    <input id="nameX" placeholder="👤 Player A">
-    <input id="nameO" placeholder="👤 Player B">
-  </div>
+<div class="row hidden" id="onlineBox">
+  <button onclick="createRoom()">Create Room</button>
+  <input id="roomCode" placeholder="Room Code">
+  <button onclick="joinRoom()">Join</button>
+</div>
 
-  <div class="row hidden" id="onlineBox">
-    <button onclick="createRoom()">Create Room</button>
-    <input id="roomCode" placeholder="Room Code">
-    <button onclick="joinRoom()">Join</button>
-  </div>
+<div class="status" id="status">Giliran: X</div>
+<div class="board" id="board"></div>
 
-  <div class="status" id="status">Giliran: X</div>
-  <div class="board" id="board"></div>
+<button onclick="resetBoard()">Reset</button>
 
-  <button onclick="resetBoard()">Reset</button>
+<div class="rank" id="globalRank"></div>
+<div class="credit">✨ Made In Relz ✨</div>
 </div>
 
 <script>
@@ -82,18 +86,20 @@ const firebaseConfig = {
   messagingSenderId: "58839283659",
   appId: "1:58839283659:web:35b40b4f6329d3108aa84e"
 };
-
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
 const boardEl=document.getElementById("board");
 const statusEl=document.getElementById("status");
 const modeEl=document.getElementById("mode");
-const diffEl=document.getElementById("difficulty");
 const onlineBox=document.getElementById("onlineBox");
+const globalRankEl=document.getElementById("globalRank");
+const nameX=document.getElementById("nameX");
+const nameO=document.getElementById("nameO");
 
 let board=["","","","","","","","",""];
 let turn="X",gameActive=true,roomId=null,online=false;
+let onlineNames={X:"",O:""};
 
 const wins=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
 
@@ -105,17 +111,22 @@ for(let i=0;i<9;i++){
 }
 
 modeEl.onchange=()=>{
-  diffEl.classList.toggle("hidden",modeEl.value!=="bot");
   onlineBox.classList.toggle("hidden",modeEl.value!=="online");
   online = modeEl.value==="online";
 };
 
+function getName(p){
+  if(modeEl.value==="online") return onlineNames[p] || p;
+  return p==="X" ? (nameX.value||"Player A") : (nameO.value||"Player B");
+}
+
 function play(i){
   if(!gameActive||board[i])return;
-  board[i]=turn;
-  render();
+  board[i]=turn; render();
   if(checkWin()){
-    statusEl.textContent="🔥 MENANG: "+turn;
+    const winner=getName(turn);
+    statusEl.textContent="🔥 MENANG: "+winner;
+    saveGlobalWin(winner);
     gameActive=false;
     if(online) syncRoom();
     return;
@@ -127,58 +138,61 @@ function play(i){
     return;
   }
   turn=turn==="X"?"O":"X";
-  statusEl.textContent="Giliran: "+turn;
-  if(modeEl.value==="bot" && turn==="O") botMove();
+  statusEl.textContent="Giliran: "+getName(turn);
   if(online) syncRoom();
 }
 
-function render(){
-  document.querySelectorAll(".cell").forEach((c,i)=>c.textContent=board[i]);
-}
-
-function checkWin(){
-  return wins.some(p=>p.every(i=>board[i]===turn));
-}
+function render(){document.querySelectorAll(".cell").forEach((c,i)=>c.textContent=board[i]);}
+function checkWin(){return wins.some(p=>p.every(i=>board[i]===turn));}
 
 function resetBoard(){
-  board=["","","","","","","","",""];
-  gameActive=true;turn="X";
-  render();
-  statusEl.textContent="Giliran: X";
+  board=["","","","","","","","",""]; gameActive=true; turn="X";
+  render(); statusEl.textContent="Giliran: "+getName("X");
   if(online) syncRoom();
-}
-
-// BOT
-function botMove(){
-  let empty=board.map((v,i)=>v===""?i:null).filter(v=>v!==null);
-  let move = empty[Math.floor(Math.random()*empty.length)];
-  setTimeout(()=>play(move),400);
 }
 
 // ONLINE
 function createRoom(){
   roomId="ROOM"+Math.floor(Math.random()*9999);
-  db.ref("rooms/"+roomId).set({board,turn});
+  onlineNames.X=nameX.value||"Player A";
+  onlineNames.O="Menunggu...";
+  db.ref("rooms/"+roomId).set({board,turn,names:onlineNames});
   alert("Room Code: "+roomId);
   listenRoom();
 }
 function joinRoom(){
   roomId=document.getElementById("roomCode").value;
+  db.ref("rooms/"+roomId+"/names/O").set(nameX.value||"Player B");
   listenRoom();
 }
 function syncRoom(){
   if(!roomId) return;
-  db.ref("rooms/"+roomId).set({board,turn});
+  db.ref("rooms/"+roomId).update({board,turn,names:onlineNames});
 }
 function listenRoom(){
   db.ref("rooms/"+roomId).on("value",snap=>{
     if(!snap.val()) return;
     board=snap.val().board;
     turn=snap.val().turn;
+    onlineNames=snap.val().names || {};
     render();
-    statusEl.textContent="Room: "+roomId+" | Giliran: "+turn;
+    statusEl.textContent="Room "+roomId+" | Giliran: "+getName(turn);
   });
 }
+
+// GLOBAL LEADERBOARD
+function saveGlobalWin(name){
+  const ref=db.ref("leaderboard_global/"+name);
+  ref.get().then(s=>{
+    let v=s.val()||0;
+    ref.set(v+1);
+  });
+}
+db.ref("leaderboard_global").orderByValue().limitToLast(10).on("value",snap=>{
+  let data=snap.val()||{};
+  let arr=Object.entries(data).sort((a,b)=>b[1]-a[1]);
+  globalRankEl.innerHTML="🏆 GLOBAL RANK:<br>"+arr.map((e,i)=>`${i+1}. ${e[0]} - ${e[1]} win`).join("<br>");
+});
 </script>
 </body>
 </html>
