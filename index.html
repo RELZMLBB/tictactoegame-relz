@@ -37,7 +37,6 @@ button{background:cyan;color:black;font-weight:bold;cursor:pointer;box-shadow:0 
 .hidden{display:none}
 .leader{font-size:12px;margin-top:8px;opacity:.95}
 .credit{margin-top:10px;text-align:center;letter-spacing:3px;color:#00fff7;animation:creditGlow 2.5s ease-in-out infinite}
-
 </style>
 </head>
 <body>
@@ -76,6 +75,11 @@ button{background:cyan;color:black;font-weight:bold;cursor:pointer;box-shadow:0 
 
   <div class="status" id="status">Pilih mode & isi nama</div>
   <div class="board" id="board"></div>
+
+  <!-- TOMBOL RESET PAPAN -->
+  <div class="row">
+    <button onclick="resetBoard()">Reset Papan</button>
+  </div>
 
   <div class="leader" id="leaderGlobal"></div>
   <div class="credit">✨ Made In Relz ✨</div>
@@ -167,6 +171,20 @@ function play(i){
   statusEl.textContent = "Giliran: " + getName(turn);
 
   if(modeEl.value==="bot" && turn==="O") botMove();
+  if(isOnline) syncRoom();
+}
+
+function resetBoard(){
+  board=["","","","","","","","",""];
+  gameActive=true;
+  turn="X";
+  document.querySelectorAll(".cell").forEach(c=>{
+    c.textContent="";
+    c.classList.remove("win");
+  });
+  statusEl.textContent = isOnline
+    ? `Room ${roomId || "-"} | Papan di-reset. Giliran: ${turn}`
+    : "Papan di-reset. Giliran: X";
   if(isOnline) syncRoom();
 }
 
