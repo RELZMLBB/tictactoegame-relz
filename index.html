@@ -3,240 +3,193 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Tic Tac Toe Neon</title>
+<title>Tic Tac Toe Neon – Final Fix</title>
+
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+
 <style>
-@keyframes rgb {
-  0% { filter: hue-rotate(0deg); }
-  100% { filter: hue-rotate(360deg); }
-}
+@keyframes rgb {0%{filter:hue-rotate(0)}100%{filter:hue-rotate(360deg)}}
+@keyframes glow {0%{text-shadow:0 0 6px cyan}50%{text-shadow:0 0 18px cyan}100%{text-shadow:0 0 6px cyan}}
 
-@keyframes creditGlow {
-  0%   { text-shadow: 0 0 6px rgba(0,255,247,.5), 0 0 12px rgba(0,255,247,.4); }
-  50%  { text-shadow: 0 0 16px rgba(0,255,247,1), 0 0 28px rgba(0,255,247,.8); }
-  100% { text-shadow: 0 0 6px rgba(0,255,247,.5), 0 0 12px rgba(0,255,247,.4); }
-}
+*{box-sizing:border-box}
 
-body {
-  margin: 0;
-  min-height: 100vh;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  background: radial-gradient(circle at top, #020024, #090979, #00d4ff);
-  font-family: Arial, sans-serif;
-  color: white;
+body{
+  margin:0;min-height:100vh;display:flex;justify-content:center;align-items:center;
+  background:radial-gradient(circle at top,#020024,#090979,#00d4ff);
+  font-family:Arial;color:white
 }
+.game-box{
+  padding:20px;border-radius:18px;background:rgba(0,0,0,.7);
+  box-shadow:0 0 30px cyan;animation:rgb 6s linear infinite;width:390px
+}
+h1{text-align:center;animation:glow 2s infinite}
 
-.game-box {
-  padding: 20px;
-  border-radius: 18px;
-  background: rgba(0,0,0,0.7);
-  box-shadow: 0 0 30px cyan;
-  animation: rgb 6s linear infinite;
-}
+.row{display:flex;gap:6px}
+.row input{width:50%}
 
-h1 {
-  text-align: center;
-  text-shadow: 0 0 12px cyan;
+input,select,button{
+  padding:10px;border-radius:10px;border:none;margin:4px 0;
+  background:#020024;color:cyan;box-shadow:inset 0 0 10px cyan
 }
+button{background:cyan;color:black;font-weight:bold;cursor:pointer;box-shadow:0 0 10px cyan}
 
-.score {
-  display: flex;
-  justify-content: space-between;
-  margin: 10px 0;
-  font-size: 18px;
+.board{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:12px 0}
+.cell{
+  height:90px;font-size:40px;border:none;border-radius:12px;
+  background:#020024;color:cyan;box-shadow:inset 0 0 12px cyan,0 0 10px cyan;cursor:pointer;
 }
+.cell.win{background:cyan;color:black;box-shadow:0 0 25px cyan}
 
-.board {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
-  margin: 15px 0;
-}
-
-.cell {
-  width: 90px;
-  height: 90px;
-  border-radius: 12px;
-  font-size: 42px;
-  cursor: pointer;
-  border: none;
-  background: #020024;
-  color: cyan;
-  box-shadow: inset 0 0 12px cyan, 0 0 10px cyan;
-  transition: 0.15s;
-}
-
-.cell:hover {
-  transform: scale(1.08);
-}
-
-.cell.win {
-  background: cyan;
-  color: black;
-  box-shadow: 0 0 25px cyan;
-}
-
-.status {
-  text-align: center;
-  margin-bottom: 10px;
-  font-weight: bold;
-  text-shadow: 0 0 8px cyan;
-}
-
-button {
-  margin: 5px;
-  padding: 8px 14px;
-  border-radius: 8px;
-  border: none;
-  cursor: pointer;
-  font-weight: bold;
-  background: cyan;
-  color: black;
-  box-shadow: 0 0 10px cyan;
-}
-
-button:hover {
-  transform: scale(1.05);
-}
-
-/* CREDIT */
-.credit {
-  margin-top: 14px;
-  text-align: center;
-  font-weight: 700;
-  letter-spacing: 3px;
-  color: #00fff7;
-  animation: creditGlow 2.8s ease-in-out infinite;
-  user-select: none;
-}
+.status{text-align:center;font-weight:bold;text-shadow:0 0 8px cyan;margin:6px 0}
+.hidden{display:none}
+.leader{font-size:12px;margin-top:8px;opacity:.9}
+.credit{text-align:center;margin-top:10px;letter-spacing:3px;opacity:.7}
 </style>
 </head>
 <body>
 
 <div class="game-box">
-  <h1>⚡ TIC TAC TOE ⚡</h1>
+<h1>⚡ TIC TAC TOE ⚡</h1>
 
-  <div class="score">
-    <div>❌ X: <span id="scoreX">0</span></div>
-    <div>⭕ O: <span id="scoreO">0</span></div>
-  </div>
-
-  <div class="status" id="status">Giliran: X</div>
-
-  <div class="board" id="board">
-    <button class="cell"></button><button class="cell"></button><button class="cell"></button>
-    <button class="cell"></button><button class="cell"></button><button class="cell"></button>
-    <button class="cell"></button><button class="cell"></button><button class="cell"></button>
-  </div>
-
-  <div style="text-align:center;">
-    <button onclick="resetBoard()">Reset Papan</button>
-    <button onclick="resetScore()">Reset Score</button>
-  </div>
-
-  <!-- CREDIT -->
-  <div class="credit">Made In By Relz</div>
+<div class="row">
+  <select id="mode">
+    <option value="pvp">Player vs Player</option>
+    <option value="bot">Player vs Bot</option>
+    <option value="online">Online Firebase</option>
+  </select>
+  <select id="difficulty" class="hidden">
+    <option value="easy">Easy</option>
+    <option value="hard">Hard</option>
+  </select>
 </div>
 
-<!-- SOUND -->
-<audio id="clickSound" src="https://assets.mixkit.co/sfx/preview/mixkit-select-click-1109.mp3"></audio>
-<audio id="winSound" src="https://assets.mixkit.co/sfx/preview/mixkit-winning-chimes-2015.mp3"></audio>
+<div class="row">
+  <input id="nameX" placeholder="Nama Player A">
+  <input id="nameO" placeholder="Nama Player B">
+</div>
+
+<div class="row hidden" id="onlineBox">
+  <button onclick="createRoom()">Create Room</button>
+  <input id="roomCode" placeholder="Room Code">
+  <button onclick="joinRoom()">Join</button>
+</div>
+
+<div class="status" id="status">👤 Player A vs Player B 👤 | Giliran: X</div>
+<div class="board" id="board"></div>
+
+<div class="row">
+  <button onclick="resetBoard()">Reset</button>
+  <button onclick="resetLocalRank()">Reset Rank</button>
+</div>
+
+<div class="leader" id="leaderLocal"></div>
+<div class="credit">Made By Relz</div>
+</div>
 
 <script>
-const cells = document.querySelectorAll('.cell');
-const statusText = document.getElementById('status');
-const scoreXEl = document.getElementById('scoreX');
-const scoreOEl = document.getElementById('scoreO');
-const clickSound = document.getElementById('clickSound');
-const winSound = document.getElementById('winSound');
+const firebaseConfig = {
+  apiKey: "AIzaSyB6gh_UggmwJDcPJ_ZL_JThDC5PPtgLLVA",
+  authDomain: "tictaetoe-c1e7f.firebaseapp.com",
+  projectId: "tictaetoe-c1e7f",
+  databaseURL: "https://tictaetoe-c1e7f-default-rtdb.firebaseio.com/"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
 
-let currentPlayer = 'X';
-let board = ["","","","","","","","",""];
-let gameActive = true;
+const boardEl=document.getElementById("board");
+const statusEl=document.getElementById("status");
+const modeEl=document.getElementById("mode");
+const diffEl=document.getElementById("difficulty");
+const onlineBox=document.getElementById("onlineBox");
+const leaderLocal=document.getElementById("leaderLocal");
+const nameX=document.getElementById("nameX");
+const nameO=document.getElementById("nameO");
 
-let scoreX = localStorage.getItem("scoreX") || 0;
-let scoreO = localStorage.getItem("scoreO") || 0;
+let board=["","","","","","","","",""];
+let turn="X",gameActive=true,roomId=null;
 
-scoreXEl.textContent = scoreX;
-scoreOEl.textContent = scoreO;
+const wins=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
 
-const winPatterns = [
-  [0,1,2],[3,4,5],[6,7,8],
-  [0,3,6],[1,4,7],[2,5,8],
-  [0,4,8],[2,4,6]
-];
+for(let i=0;i<9;i++){
+  const b=document.createElement("button");
+  b.className="cell";
+  b.onclick=()=>play(i);
+  boardEl.appendChild(b);
+}
 
-cells.forEach((cell, i) => {
-  cell.addEventListener('click', () => {
-    if (!gameActive || board[i] !== "") return;
+modeEl.onchange=()=>{
+  diffEl.classList.toggle("hidden",modeEl.value!=="bot");
+  onlineBox.classList.toggle("hidden",modeEl.value!=="online");
+  updateLabel();
+};
 
-    board[i] = currentPlayer;
-    cell.textContent = currentPlayer;
-    clickSound.currentTime = 0;
-    clickSound.play();
+nameX.oninput=nameO.oninput=updateLabel;
 
-    const winPattern = checkWin();
-    if (winPattern) {
-      statusText.textContent = `🔥 Pemenang: ${currentPlayer} 🔥`;
-      winSound.play();
-      winPattern.forEach(index => cells[index].classList.add('win'));
-
-      if (currentPlayer === "X") {
-        scoreX++;
-        localStorage.setItem("scoreX", scoreX);
-        scoreXEl.textContent = scoreX;
-      } else {
-        scoreO++;
-        localStorage.setItem("scoreO", scoreO);
-        scoreOEl.textContent = scoreO;
-      }
-
-      gameActive = false;
-      return;
-    }
-
-    if (!board.includes("")) {
-      statusText.textContent = "🤝 Seri!";
-      gameActive = false;
-      return;
-    }
-
-    currentPlayer = currentPlayer === "X" ? "O" : "X";
-    statusText.textContent = `Giliran: ${currentPlayer}`;
-  });
-});
-
-function checkWin() {
-  for (let pattern of winPatterns) {
-    if (pattern.every(i => board[i] === currentPlayer)) {
-      return pattern;
-    }
+function updateLabel(){
+  let label="";
+  if(modeEl.value==="bot"){
+    label="👤 Player vs Bot 👤";
+  }else{
+    const a=nameX.value||"Player A";
+    const b=nameO.value||"Player B";
+    label=`👤 ${a} vs ${b} 👤`;
   }
-  return null;
+  statusEl.textContent=label+" | Giliran: "+turn;
 }
 
-function resetBoard() {
-  board = ["","","","","","","","",""];
-  cells.forEach(cell => {
-    cell.textContent = "";
-    cell.classList.remove('win');
-  });
-  currentPlayer = "X";
-  statusText.textContent = "Giliran: X";
-  gameActive = true;
+function play(i){
+  if(!gameActive||board[i])return;
+  board[i]=turn;
+  render();
+
+  if(checkWin()){
+    statusEl.textContent="🔥 MENANG: "+turn;
+    saveLocalWin(turn);
+    gameActive=false; return;
+  }
+  if(!board.includes("")){
+    statusEl.textContent="🤝 SERI!";
+    gameActive=false; return;
+  }
+  turn=turn==="X"?"O":"X";
+  updateLabel();
 }
 
-function resetScore() {
-  localStorage.setItem("scoreX", 0);
-  localStorage.setItem("scoreO", 0);
-  scoreX = 0;
-  scoreO = 0;
-  scoreXEl.textContent = 0;
-  scoreOEl.textContent = 0;
-  resetBoard();
+function render(){
+  document.querySelectorAll(".cell").forEach((c,i)=>c.textContent=board[i]);
 }
+function checkWin(){
+  return wins.some(p=>p.every(i=>board[i]===turn));
+}
+function resetBoard(){
+  board=["","","","","","","","",""];
+  turn="X";gameActive=true;
+  document.querySelectorAll(".cell").forEach(c=>{c.textContent="";c.classList.remove("win")});
+  updateLabel();
+}
+
+// Leaderboard lokal
+function saveLocalWin(p){
+  const name = p==="X" ? (nameX.value||"Player A") : (nameO.value||"Player B");
+  let data=JSON.parse(localStorage.getItem("leaderboard")||"{}");
+  data[name]=(data[name]||0)+1;
+  localStorage.setItem("leaderboard",JSON.stringify(data));
+  renderLocalLB();
+}
+function renderLocalLB(){
+  let data=JSON.parse(localStorage.getItem("leaderboard")||"{}");
+  let arr=Object.entries(data).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  leaderLocal.innerHTML="🏆 Rank Lokal:<br>"+arr.map((e,i)=>`${i+1}. ${e[0]} - ${e[1]} win`).join("<br>");
+}
+renderLocalLB();
+function resetLocalRank(){
+  localStorage.removeItem("leaderboard");
+  renderLocalLB();
+}
+
+updateLabel();
 </script>
 
 </body>
-</html>
+  </html>
