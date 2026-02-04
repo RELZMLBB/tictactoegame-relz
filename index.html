@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tic Tac Toe Neon</title>
+<style>
+@keyframes rgb {
+  0% { filter: hue-rotate(0deg); }
+  100% { filter: hue-rotate(360deg); }
+}
+
+@keyframes creditGlow {
+  0%   { text-shadow: 0 0 6px rgba(0,255,247,.5), 0 0 12px rgba(0,255,247,.4); }
+  50%  { text-shadow: 0 0 16px rgba(0,255,247,1), 0 0 28px rgba(0,255,247,.8); }
+  100% { text-shadow: 0 0 6px rgba(0,255,247,.5), 0 0 12px rgba(0,255,247,.4); }
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: radial-gradient(circle at top, #020024, #090979, #00d4ff);
+  font-family: Arial, sans-serif;
+  color: white;
+}
+
+.game-box {
+  padding: 20px;
+  border-radius: 18px;
+  background: rgba(0,0,0,0.7);
+  box-shadow: 0 0 30px cyan;
+  animation: rgb 6s linear infinite;
+}
+
+h1 {
+  text-align: center;
+  text-shadow: 0 0 12px cyan;
+}
+
+.score {
+  display: flex;
+  justify-content: space-between;
+  margin: 10px 0;
+  font-size: 18px;
+}
+
+.board {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin: 15px 0;
+}
+
+.cell {
+  width: 90px;
+  height: 90px;
+  border-radius: 12px;
+  font-size: 42px;
+  cursor: pointer;
+  border: none;
+  background: #020024;
+  color: cyan;
+  box-shadow: inset 0 0 12px cyan, 0 0 10px cyan;
+  transition: 0.15s;
+}
+
+.cell:hover {
+  transform: scale(1.08);
+}
+
+.cell.win {
+  background: cyan;
+  color: black;
+  box-shadow: 0 0 25px cyan;
+}
+
+.status {
+  text-align: center;
+  margin-bottom: 10px;
+  font-weight: bold;
+  text-shadow: 0 0 8px cyan;
+}
+
+button {
+  margin: 5px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  font-weight: bold;
+  background: cyan;
+  color: black;
+  box-shadow: 0 0 10px cyan;
+}
+
+button:hover {
+  transform: scale(1.05);
+}
+
+/* CREDIT */
+.credit {
+  margin-top: 14px;
+  text-align: center;
+  font-weight: 700;
+  letter-spacing: 3px;
+  color: #00fff7;
+  animation: creditGlow 2.8s ease-in-out infinite;
+  user-select: none;
+}
+</style>
+</head>
+<body>
+
+<div class="game-box">
+  <h1>⚡ TIC TAC TOE ⚡</h1>
+
+  <div class="score">
+    <div>❌ X: <span id="scoreX">0</span></div>
+    <div>⭕ O: <span id="scoreO">0</span></div>
+  </div>
+
+  <div class="status" id="status">Giliran: X</div>
+
+  <div class="board" id="board">
+    <button class="cell"></button><button class="cell"></button><button class="cell"></button>
+    <button class="cell"></button><button class="cell"></button><button class="cell"></button>
+    <button class="cell"></button><button class="cell"></button><button class="cell"></button>
+  </div>
+
+  <div style="text-align:center;">
+    <button onclick="resetBoard()">Reset Papan</button>
+    <button onclick="resetScore()">Reset Score</button>
+  </div>
+
+  <!-- CREDIT -->
+  <div class="credit">Made In By Relz</div>
+</div>
+
+<!-- SOUND -->
+<audio id="clickSound" src="https://assets.mixkit.co/sfx/preview/mixkit-select-click-1109.mp3"></audio>
+<audio id="winSound" src="https://assets.mixkit.co/sfx/preview/mixkit-winning-chimes-2015.mp3"></audio>
+
+<script>
+const cells = document.querySelectorAll('.cell');
+const statusText = document.getElementById('status');
+const scoreXEl = document.getElementById('scoreX');
+const scoreOEl = document.getElementById('scoreO');
+const clickSound = document.getElementById('clickSound');
+const winSound = document.getElementById('winSound');
+
+let currentPlayer = 'X';
+let board = ["","","","","","","","",""];
+let gameActive = true;
+
+let scoreX = localStorage.getItem("scoreX") || 0;
+let scoreO = localStorage.getItem("scoreO") || 0;
+
+scoreXEl.textContent = scoreX;
+scoreOEl.textContent = scoreO;
+
+const winPatterns = [
+  [0,1,2],[3,4,5],[6,7,8],
+  [0,3,6],[1,4,7],[2,5,8],
+  [0,4,8],[2,4,6]
+];
+
+cells.forEach((cell, i) => {
+  cell.addEventListener('click', () => {
+    if (!gameActive || board[i] !== "") return;
+
+    board[i] = currentPlayer;
+    cell.textContent = currentPlayer;
+    clickSound.currentTime = 0;
+    clickSound.play();
+
+    const winPattern = checkWin();
+    if (winPattern) {
+      statusText.textContent = `🔥 Pemenang: ${currentPlayer} 🔥`;
+      winSound.play();
+      winPattern.forEach(index => cells[index].classList.add('win'));
+
+      if (currentPlayer === "X") {
+        scoreX++;
+        localStorage.setItem("scoreX", scoreX);
+        scoreXEl.textContent = scoreX;
+      } else {
+        scoreO++;
+        localStorage.setItem("scoreO", scoreO);
+        scoreOEl.textContent = scoreO;
+      }
+
+      gameActive = false;
+      return;
+    }
+
+    if (!board.includes("")) {
+      statusText.textContent = "🤝 Seri!";
+      gameActive = false;
+      return;
+    }
+
+    currentPlayer = currentPlayer === "X" ? "O" : "X";
+    statusText.textContent = `Giliran: ${currentPlayer}`;
+  });
+});
+
+function checkWin() {
+  for (let pattern of winPatterns) {
+    if (pattern.every(i => board[i] === currentPlayer)) {
+      return pattern;
+    }
+  }
+  return null;
+}
+
+function resetBoard() {
+  board = ["","","","","","","","",""];
+  cells.forEach(cell => {
+    cell.textContent = "";
+    cell.classList.remove('win');
+  });
+  currentPlayer = "X";
+  statusText.textContent = "Giliran: X";
+  gameActive = true;
+}
+
+function resetScore() {
+  localStorage.setItem("scoreX", 0);
+  localStorage.setItem("scoreO", 0);
+  scoreX = 0;
+  scoreO = 0;
+  scoreXEl.textContent = 0;
+  scoreOEl.textContent = 0;
+  resetBoard();
+}
+</script>
+
+</body>
+</html>
