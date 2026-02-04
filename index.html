@@ -1,50 +1,84 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Tic Tac Toe Neon – Online Fixed</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tic Tac Toe Neon – Relz</title>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
 <style>
-/* (CSS sama kayak versi neon lu, ringkas di sini biar fokus fix logic) */
-body{margin:0;min-height:100vh;display:flex;justify-content:center;align-items:center;
-background:radial-gradient(circle at top,#020024,#090979,#00d4ff);font-family:Arial;color:white}
-.game-box{padding:20px;border-radius:18px;background:rgba(0,0,0,.7);box-shadow:0 0 30px cyan;width:390px}
-h1{text-align:center;text-shadow:0 0 12px cyan}
-.row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-input,select,button{width:100%;padding:8px;border-radius:8px;border:none;margin:4px 0}
-button{background:cyan;color:black;font-weight:bold;cursor:pointer}
+@keyframes rgb {0%{filter:hue-rotate(0)}100%{filter:hue-rotate(360deg)}}
+@keyframes glow {0%{text-shadow:0 0 6px cyan}50%{text-shadow:0 0 18px cyan}100%{text-shadow:0 0 6px cyan}}
+@keyframes creditGlow {0%{text-shadow:0 0 6px #00fff7}50%{text-shadow:0 0 24px #00fff7}100%{text-shadow:0 0 6px #00fff7}}
+
+body{
+  margin:0;min-height:100vh;display:flex;justify-content:center;align-items:center;
+  background:radial-gradient(circle at top,#020024,#090979,#00d4ff);
+  font-family:Arial;color:white
+}
+.game-box{
+  padding:18px;border-radius:18px;background:rgba(0,0,0,.7);
+  box-shadow:0 0 30px cyan;animation:rgb 6s linear infinite;width:390px
+}
+h1{text-align:center;animation:glow 2s infinite}
+.row{display:flex;gap:8px}
+input,select,button{padding:8px;border-radius:8px;border:none;margin:4px 0;width:100%}
+.row input{width:50%;box-sizing:border-box}
+button{background:cyan;color:black;font-weight:bold;cursor:pointer;box-shadow:0 0 10px cyan}
 .board{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:12px 0}
-.cell{height:90px;font-size:40px;border:none;border-radius:12px;background:#020024;color:cyan;box-shadow:inset 0 0 12px cyan,0 0 10px cyan}
+.cell{
+  height:90px;font-size:40px;border:none;border-radius:12px;
+  background:#020024;color:cyan;box-shadow:inset 0 0 12px cyan,0 0 10px cyan;cursor:pointer;
+  transition:.15s
+}
+.cell:hover{transform:scale(1.05)}
+.cell.win{background:cyan;color:black;box-shadow:0 0 25px cyan}
+.status{text-align:center;font-weight:bold;text-shadow:0 0 8px cyan}
 .hidden{display:none}
-.status{text-align:center;font-weight:bold}
+.leader{font-size:12px;margin-top:8px;opacity:.95}
+.credit{margin-top:10px;text-align:center;letter-spacing:3px;color:#00fff7;animation:creditGlow 2.5s ease-in-out infinite}
+
 </style>
 </head>
 <body>
 
 <div class="game-box">
-<h1>⚡ TIC TAC TOE ⚡</h1>
+  <h1>⚡ TIC TAC TOE ⚡</h1>
 
-<select id="mode">
-  <option value="pvp">Player vs Player</option>
-  <option value="bot">Player vs Bot</option>
-  <option value="online">Online Firebase</option>
-</select>
+  <div class="row">
+    <select id="mode">
+      <option value="pvp">Player vs Player</option>
+      <option value="bot">Player vs Bot</option>
+      <option value="online">Online Firebase</option>
+    </select>
+    <select id="difficulty" class="hidden">
+      <option value="easy">Easy</option>
+      <option value="hard">Hard</option>
+      <option value="super">Super Hard</option>
+      <option value="impossible">Impossible</option>
+    </select>
+  </div>
 
-<div class="row" id="nameRow">
-  <input id="nameX" placeholder="Nama kamu (Online)">
-  <input id="nameO" placeholder="Nama Player B (PVP)">
-</div>
+  <div class="row" id="namesPVP">
+    <input id="nameX" placeholder="Nama Player A">
+    <input id="nameO" placeholder="Nama Player B">
+  </div>
 
-<div class="row hidden" id="onlineBox">
-  <button id="btnCreate">Create Room</button>
-  <input id="roomCode" placeholder="Room Code">
-  <button id="btnJoin">Join</button>
-</div>
+  <div class="row hidden" id="nameOnlineRow">
+    <input id="nameOnline" placeholder="Nama Kamu (wajib sebelum Create/Join)">
+  </div>
 
-<div class="status" id="status">Isi nama → Create / Join</div>
-<div class="board" id="board"></div>
+  <div class="row hidden" id="onlineBox">
+    <button id="btnCreate">Create Room</button>
+    <input id="roomCode" placeholder="Kode 4 Digit">
+    <button id="btnJoin">Join</button>
+  </div>
+
+  <div class="status" id="status">Pilih mode & isi nama</div>
+  <div class="board" id="board"></div>
+
+  <div class="leader" id="leaderGlobal"></div>
+  <div class="credit">✨ Made In Relz ✨</div>
 </div>
 
 <script>
@@ -60,19 +94,14 @@ const db = firebase.database();
 const boardEl = document.getElementById("board");
 const statusEl = document.getElementById("status");
 const modeEl = document.getElementById("mode");
+const diffEl = document.getElementById("difficulty");
 const onlineBox = document.getElementById("onlineBox");
-const nameX = document.getElementById("nameX");
-const nameO = document.getElementById("nameO");
-const btnCreate = document.getElementById("btnCreate");
-const btnJoin = document.getElementById("btnJoin");
-const roomCodeInput = document.getElementById("roomCode");
+const namesPVP = document.getElementById("namesPVP");
+const nameOnlineRow = document.getElementById("nameOnlineRow");
+const leaderGlobal = document.getElementById("leaderGlobal");
 
-let board = ["","","","","","","","",""];
-let turn = "X";
-let gameActive = true;
-let roomId = null;
-let online = false;
-let mySide = "X"; // X = host, O = joiner
+let board=["","","","","","","","",""];
+let turn="X",gameActive=true,roomId=null,isOnline=false,mySymbol=null,myName="";
 
 const wins=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
 
@@ -83,70 +112,129 @@ for(let i=0;i<9;i++){
   boardEl.appendChild(b);
 }
 
-modeEl.onchange = () => {
-  online = modeEl.value === "online";
+modeEl.onchange=()=>{
+  diffEl.classList.toggle("hidden", modeEl.value!=="bot");
+  const online = modeEl.value==="online";
   onlineBox.classList.toggle("hidden", !online);
-  nameO.classList.toggle("hidden", modeEl.value !== "pvp");
-  statusEl.textContent = online ? "Isi nama → Create / Join" : "Giliran: X";
+  nameOnlineRow.classList.toggle("hidden", !online);
+  namesPVP.classList.toggle("hidden", online);
+  isOnline = online;
+  statusEl.textContent = online ? "Isi nama dulu, baru Create/Join" : "Siap main";
 };
-
-btnCreate.onclick = () => {
-  if(!nameX.value) return alert("Isi nama kamu dulu!");
-  roomId = "ROOM" + Math.floor(Math.random()*9999);
-  mySide = "X";
-  db.ref("rooms/"+roomId).set({
-    board, turn,
-    hostName: nameX.value,
-    joinName: ""
-  });
-  statusEl.textContent = "Room: " + roomId + " | Menunggu lawan...";
-  listenRoom();
-  alert("Room Code: " + roomId);
-};
-
-btnJoin.onclick = () => {
-  if(!nameX.value) return alert("Isi nama kamu dulu!");
-  const code = roomCodeInput.value.trim();
-  if(!code) return alert("Masukin Room Code!");
-  roomId = code;
-  mySide = "O";
-  db.ref("rooms/"+roomId).once("value").then(snap=>{
-    if(!snap.exists()) return alert("Room tidak ditemukan!");
-    db.ref("rooms/"+roomId).update({ joinName: nameX.value });
-    listenRoom();
-  });
-};
-
-function play(i){
-  if(!online || !gameActive) return;
-  if(turn !== mySide) return;       // bukan giliran lu
-  if(board[i]) return;
-
-  board[i] = mySide;
-  syncRoom();
-}
-
-function listenRoom(){
-  db.ref("rooms/"+roomId).on("value", snap=>{
-    if(!snap.val()) return;
-    const data = snap.val();
-    board = data.board;
-    turn = data.turn;
-    render();
-
-    const lawan = mySide === "X" ? data.joinName : data.hostName;
-    statusEl.textContent = `Room: ${roomId} | Kamu: ${nameX.value} vs ${lawan || "Menunggu..." } | Giliran: ${turn}`;
-  });
-}
-
-function syncRoom(){
-  const next = turn === "X" ? "O" : "X";
-  db.ref("rooms/"+roomId).update({ board, turn: next });
-}
 
 function render(){
   document.querySelectorAll(".cell").forEach((c,i)=>c.textContent=board[i]);
 }
+
+function checkWin(){
+  for(let p of wins){
+    if(p.every(i=>board[i]===turn)){
+      p.forEach(i=>document.querySelectorAll(".cell")[i].classList.add("win"));
+      return true;
+    }
+  }
+  return false;
+}
+
+function getName(p){
+  if(modeEl.value==="pvp") return p==="X" ? (nameX.value||"Player A") : (nameO.value||"Player B");
+  if(modeEl.value==="bot") return p==="X" ? (nameX.value||"Kamu") : "Bot";
+  return p===mySymbol ? myName : "Lawan";
+}
+
+function play(i){
+  if(!gameActive || board[i]) return;
+  if(isOnline && turn!==mySymbol) return;
+
+  board[i]=turn;
+  render();
+
+  if(checkWin()){
+    statusEl.textContent = "🔥 MENANG: " + getName(turn);
+    saveGlobalWin(getName(turn));
+    gameActive=false;
+    if(isOnline) syncRoom();
+    return;
+  }
+  if(!board.includes("")){
+    statusEl.textContent="🤝 SERI!";
+    gameActive=false;
+    if(isOnline) syncRoom();
+    return;
+  }
+
+  turn = turn==="X"?"O":"X";
+  statusEl.textContent = "Giliran: " + getName(turn);
+
+  if(modeEl.value==="bot" && turn==="O") botMove();
+  if(isOnline) syncRoom();
+}
+
+// BOT simple
+function botMove(){
+  let empty=board.map((v,i)=>v===""?i:null).filter(v=>v!==null);
+  let move = empty[Math.floor(Math.random()*empty.length)];
+  setTimeout(()=>play(move),400);
+}
+
+// ===== ONLINE FIREBASE =====
+document.getElementById("btnCreate").onclick = () => {
+  myName = document.getElementById("nameOnline").value.trim();
+  if(!myName) return alert("Isi nama dulu!");
+  roomId = String(Math.floor(1000 + Math.random()*9000)); // 4 digit
+  mySymbol = "X";
+  db.ref("rooms/"+roomId).set({ board, turn, X: myName, O: "" });
+  listenRoom();
+  alert("Room Code: " + roomId);
+};
+
+document.getElementById("btnJoin").onclick = () => {
+  myName = document.getElementById("nameOnline").value.trim();
+  roomId = document.getElementById("roomCode").value.trim();
+  if(!myName || !roomId) return alert("Isi nama & kode room!");
+  db.ref("rooms/"+roomId).get().then(s=>{
+    if(!s.exists()) return alert("Room tidak ditemukan!");
+    mySymbol = "O";
+    db.ref("rooms/"+roomId+"/O").set(myName);
+    listenRoom();
+  });
+};
+
+function syncRoom(){
+  if(!roomId) return;
+  db.ref("rooms/"+roomId).update({ board, turn });
+}
+
+function listenRoom(){
+  db.ref("rooms/"+roomId).on("value", snap=>{
+    const v = snap.val();
+    if(!v) return;
+    board = v.board || board;
+    turn = v.turn || turn;
+    render();
+    const lawan = mySymbol==="X" ? (v.O||"Menunggu lawan...") : (v.X||"Menunggu lawan...");
+    statusEl.textContent = `Room ${roomId} | Kamu: ${myName} | Lawan: ${lawan} | Giliran: ${turn}`;
+  });
+}
+
+// ===== LEADERBOARD GLOBAL TOP 10 =====
+function saveGlobalWin(name){
+  if(!name) return;
+  const ref = db.ref("leaderboard/"+name);
+  ref.get().then(s=>{
+    const v = s.val() || 0;
+    ref.set(v+1);
+  });
+}
+function renderGlobalLB(){
+  db.ref("leaderboard").orderByValue().limitToLast(10).on("value", snap=>{
+    const data = snap.val() || {};
+    const arr = Object.entries(data).sort((a,b)=>b[1]-a[1]);
+    leaderGlobal.innerHTML = "🏆 Global Top 10:<br>" +
+      arr.map((e,i)=>`${i+1}. ${e[0]} — ${e[1]} win`).join("<br>");
+  });
+}
+renderGlobalLB();
 </script>
 </body>
 </html>
