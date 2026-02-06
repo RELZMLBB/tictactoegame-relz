@@ -10,33 +10,20 @@
 @keyframes rgb {0%{filter:hue-rotate(0)}100%{filter:hue-rotate(360deg)}}
 @keyframes glow {0%{text-shadow:0 0 6px cyan}50%{text-shadow:0 0 18px cyan}100%{text-shadow:0 0 6px cyan}}
 @keyframes creditGlow {0%{text-shadow:0 0 6px #00fff7}50%{text-shadow:0 0 24px #00fff7}100%{text-shadow:0 0 6px #00fff7}}
-
-body{
-  margin:0;min-height:100vh;display:flex;justify-content:center;align-items:center;
-  background:radial-gradient(circle at top,#020024,#090979,#00d4ff);
-  font-family:Arial;color:white
-}
-.game-box{
-  padding:18px;border-radius:18px;background:rgba(0,0,0,.7);
-  box-shadow:0 0 30px cyan;animation:rgb 6s linear infinite;width:390px
-}
+body{margin:0;min-height:100vh;display:flex;justify-content:center;align-items:center;background:radial-gradient(circle at top,#020024,#090979,#00d4ff);font-family:Arial;color:white}
+.game-box{padding:18px;border-radius:18px;background:rgba(0,0,0,.7);box-shadow:0 0 30px cyan;animation:rgb 6s linear infinite;width:390px}
 h1{text-align:center;animation:glow 2s infinite}
 .row{display:flex;gap:8px}
 input,select,button{padding:8px;border-radius:8px;border:none;margin:4px 0;width:100%}
 .row input{width:50%;box-sizing:border-box}
 button{background:cyan;color:black;font-weight:bold;cursor:pointer;box-shadow:0 0 10px cyan}
 .board{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:12px 0}
-.cell{
-  height:90px;font-size:40px;border:none;border-radius:12px;
-  background:#020024;color:cyan;box-shadow:inset 0 0 12px cyan,0 0 10px cyan;cursor:pointer;
-  transition:.15s
-}
-.cell:hover{transform:scale(1.05)}
+.cell{height:90px;font-size:40px;border:none;border-radius:12px;background:#020024;color:cyan;box-shadow:inset 0 0 12px cyan,0 0 10px cyan;cursor:pointer}
 .cell.win{background:cyan;color:black;box-shadow:0 0 25px cyan}
-.status{text-align:center;font-weight:bold;text-shadow:0 0 8px cyan}
+.status,.score{text-align:center;font-weight:bold;text-shadow:0 0 8px cyan}
 .hidden{display:none}
-.leader{font-size:12px;margin-top:8px;opacity:.95}
-.credit{margin-top:10px;text-align:center;letter-spacing:3px;color:#00fff7;animation:creditGlow 2.5s ease-in-out infinite}
+.leader{font-size:12px;margin-top:6px}
+.credit{text-align:center;margin-top:8px;color:#00fff7;animation:creditGlow 2.5s infinite}
 </style>
 </head>
 <body>
@@ -50,11 +37,11 @@ button{background:cyan;color:black;font-weight:bold;cursor:pointer;box-shadow:0 
       <option value="bot">Player vs Bot</option>
       <option value="online">Online Firebase</option>
     </select>
-    <select id="difficulty" class="hidden">
-      <option value="easy">Easy</option>
-      <option value="hard">Hard</option>
-      <option value="super">Super Hard</option>
-      <option value="impossible">Impossible</option>
+    <select id="boMode">
+      <option value="1">BO 1</option>
+      <option value="3">BO 3</option>
+      <option value="5">BO 5</option>
+      <option value="7">BO 7</option>
     </select>
   </div>
 
@@ -73,13 +60,9 @@ button{background:cyan;color:black;font-weight:bold;cursor:pointer;box-shadow:0 
     <button id="btnJoin">Join</button>
   </div>
 
+  <div class="score" id="scoreText">Score: 0 - 0</div>
   <div class="status" id="status">Pilih mode & isi nama</div>
   <div class="board" id="board"></div>
-
-  <!-- TOMBOL RESET PAPAN -->
-  <div class="row">
-    <button onclick="resetBoard()">Reset Papan</button>
-  </div>
 
   <div class="leader" id="leaderGlobal"></div>
   <div class="credit">✨ Made In Relz ✨</div>
@@ -97,8 +80,9 @@ const db = firebase.database();
 
 const boardEl = document.getElementById("board");
 const statusEl = document.getElementById("status");
+const scoreText = document.getElementById("scoreText");
 const modeEl = document.getElementById("mode");
-const diffEl = document.getElementById("difficulty");
+const boModeEl = document.getElementById("boMode");
 const onlineBox = document.getElementById("onlineBox");
 const namesPVP = document.getElementById("namesPVP");
 const nameOnlineRow = document.getElementById("nameOnlineRow");
@@ -106,6 +90,7 @@ const leaderGlobal = document.getElementById("leaderGlobal");
 
 let board=["","","","","","","","",""];
 let turn="X",gameActive=true,roomId=null,isOnline=false,mySymbol=null,myName="";
+let scoreX=0, scoreO=0, starter="X";
 
 const wins=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
 
@@ -117,17 +102,27 @@ for(let i=0;i<9;i++){
 }
 
 modeEl.onchange=()=>{
-  diffEl.classList.toggle("hidden", modeEl.value!=="bot");
   const online = modeEl.value==="online";
   onlineBox.classList.toggle("hidden", !online);
   nameOnlineRow.classList.toggle("hidden", !online);
   namesPVP.classList.toggle("hidden", online);
+  boModeEl.classList.toggle("hidden", online); // ONLINE TANPA BO
   isOnline = online;
-  statusEl.textContent = online ? "Isi nama dulu, baru Create/Join" : "Siap main";
+  statusEl.textContent = online ? "Isi nama dulu, lalu Create / Join" : "Siap main!";
 };
 
-function render(){
-  document.querySelectorAll(".cell").forEach((c,i)=>c.textContent=board[i]);
+function render(){document.querySelectorAll(".cell").forEach((c,i)=>c.textContent=board[i]);}
+function updateScore(){scoreText.textContent = `Score: ${scoreX} - ${scoreO}`;}
+
+function resetRound(){
+  board=["","","","","","","","",""];
+  turn = starter;
+  starter = starter==="X"?"O":"X";
+  gameActive=true;
+  document.querySelectorAll(".cell").forEach(c=>c.classList.remove("win"));
+  render();
+  statusEl.textContent = "Ronde baru! Giliran: " + turn;
+  if(isOnline) syncRoom();
 }
 
 function checkWin(){
@@ -146,6 +141,44 @@ function getName(p){
   return p===mySymbol ? myName : "Lawan";
 }
 
+// BOT SUPER JAGO (MINIMAX)
+function minimax(b, isMax){
+  if(wins.some(p=>p.every(i=>b[i]==="O"))) return 1;
+  if(wins.some(p=>p.every(i=>b[i]==="X"))) return -1;
+  if(!b.includes("")) return 0;
+  let best = isMax ? -Infinity : Infinity;
+  b.forEach((v,i)=>{
+    if(v===""){
+      b[i]=isMax?"O":"X";
+      let score=minimax(b,!isMax);
+      b[i]="";
+      best = isMax ? Math.max(best,score) : Math.min(best,score);
+    }
+  });
+  return best;
+}
+function botMove(){
+  let best=-Infinity,move=null;
+  board.forEach((v,i)=>{
+    if(v===""){
+      board[i]="O";
+      let score=minimax(board,false);
+      board[i]="";
+      if(score>best){best=score;move=i;}
+    }
+  });
+  setTimeout(()=>play(move),300);
+}
+
+function checkBO(){
+  const target = Math.ceil(boModeEl.value/2);
+  if(scoreX>=target || scoreO>=target){
+    statusEl.textContent = "🏆 JUARA: " + (scoreX>scoreO?getName("X"):getName("O"));
+    saveGlobalWin(scoreX>scoreO?getName("X"):getName("O"));
+    gameActive=false;
+  }
+}
+
 function play(i){
   if(!gameActive || board[i]) return;
   if(isOnline && turn!==mySymbol) return;
@@ -155,8 +188,11 @@ function play(i){
 
   if(checkWin()){
     statusEl.textContent = "🔥 MENANG: " + getName(turn);
-    saveGlobalWin(getName(turn));
+    if(turn==="X") scoreX++; else scoreO++;
+    updateScore();
     gameActive=false;
+    if(!isOnline) checkBO();
+    if(isOnline) saveGlobalWin(getName(turn));
     if(isOnline) syncRoom();
     return;
   }
@@ -174,32 +210,11 @@ function play(i){
   if(isOnline) syncRoom();
 }
 
-function resetBoard(){
-  board=["","","","","","","","",""];
-  gameActive=true;
-  turn="X";
-  document.querySelectorAll(".cell").forEach(c=>{
-    c.textContent="";
-    c.classList.remove("win");
-  });
-  statusEl.textContent = isOnline
-    ? `Room ${roomId || "-"} | Papan di-reset. Giliran: ${turn}`
-    : "Papan di-reset. Giliran: X";
-  if(isOnline) syncRoom();
-}
-
-// BOT simple
-function botMove(){
-  let empty=board.map((v,i)=>v===""?i:null).filter(v=>v!==null);
-  let move = empty[Math.floor(Math.random()*empty.length)];
-  setTimeout(()=>play(move),400);
-}
-
 // ===== ONLINE FIREBASE =====
 document.getElementById("btnCreate").onclick = () => {
   myName = document.getElementById("nameOnline").value.trim();
   if(!myName) return alert("Isi nama dulu!");
-  roomId = String(Math.floor(1000 + Math.random()*9000)); // 4 digit
+  roomId = String(Math.floor(1000 + Math.random()*9000));
   mySymbol = "X";
   db.ref("rooms/"+roomId).set({ board, turn, X: myName, O: "" });
   listenRoom();
@@ -253,6 +268,7 @@ function renderGlobalLB(){
   });
 }
 renderGlobalLB();
+updateScore();
 </script>
 </body>
 </html>
