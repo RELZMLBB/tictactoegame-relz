@@ -10,20 +10,25 @@
 @keyframes rgb {0%{filter:hue-rotate(0)}100%{filter:hue-rotate(360deg)}}
 @keyframes glow {0%{text-shadow:0 0 6px cyan}50%{text-shadow:0 0 18px cyan}100%{text-shadow:0 0 6px cyan}}
 @keyframes creditGlow {0%{text-shadow:0 0 6px #00fff7}50%{text-shadow:0 0 24px #00fff7}100%{text-shadow:0 0 6px #00fff7}}
+@keyframes pop {0%{transform:scale(.9)}60%{transform:scale(1.1)}100%{transform:scale(1)}}
 body{margin:0;min-height:100vh;display:flex;justify-content:center;align-items:center;background:radial-gradient(circle at top,#020024,#090979,#00d4ff);font-family:Arial;color:white}
 .game-box{padding:18px;border-radius:18px;background:rgba(0,0,0,.7);box-shadow:0 0 30px cyan;animation:rgb 6s linear infinite;width:390px}
 h1{text-align:center;animation:glow 2s infinite}
 .row{display:flex;gap:8px}
 input,select,button{padding:8px;border-radius:8px;border:none;margin:4px 0;width:100%}
 .row input{width:50%;box-sizing:border-box}
-button{background:cyan;color:black;font-weight:bold;cursor:pointer;box-shadow:0 0 10px cyan}
+button{background:cyan;color:black;font-weight:bold;cursor:pointer;box-shadow:0 0 10px cyan;transition:.15s}
+button:hover{transform:translateY(-1px);box-shadow:0 0 18px cyan}
 .board{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:12px 0}
-.cell{height:90px;font-size:40px;border:none;border-radius:12px;background:#020024;color:cyan;box-shadow:inset 0 0 12px cyan,0 0 10px cyan;cursor:pointer}
+.cell{height:90px;font-size:40px;border:none;border-radius:12px;background:#020024;color:cyan;box-shadow:inset 0 0 12px cyan,0 0 10px cyan;cursor:pointer;animation:pop .12s}
 .cell.win{background:cyan;color:black;box-shadow:0 0 25px cyan}
 .status,.score{text-align:center;font-weight:bold;text-shadow:0 0 8px cyan}
 .hidden{display:none}
 .leader{font-size:12px;margin-top:6px}
 .credit{text-align:center;margin-top:8px;color:#00fff7;animation:creditGlow 2.5s infinite}
+.confetti{position:fixed;inset:0;pointer-events:none}
+.confetti i{position:absolute;width:6px;height:10px;background:cyan;animation:fall 1.4s linear forwards}
+@keyframes fall{to{transform:translateY(110vh) rotate(720deg);opacity:0}}
 </style>
 </head>
 <body>
@@ -60,6 +65,12 @@ button{background:cyan;color:black;font-weight:bold;cursor:pointer;box-shadow:0 
     <button id="btnJoin">Join</button>
   </div>
 
+  <div class="row">
+    <button id="btnResetBoard">🔁 Reset Papan</button>
+    <button id="btnNextRound">➡️ Next Round</button>
+    <button id="btnResetScore">🧹 Reset Score</button>
+  </div>
+
   <div class="score" id="scoreText">Score: 0 - 0</div>
   <div class="status" id="status">Pilih mode & isi nama</div>
   <div class="board" id="board"></div>
@@ -67,6 +78,8 @@ button{background:cyan;color:black;font-weight:bold;cursor:pointer;box-shadow:0 
   <div class="leader" id="leaderGlobal"></div>
   <div class="credit">✨ Made In Relz ✨</div>
 </div>
+
+<div class="confetti" id="confetti"></div>
 
 <script>
 const firebaseConfig = {
@@ -87,6 +100,7 @@ const onlineBox = document.getElementById("onlineBox");
 const namesPVP = document.getElementById("namesPVP");
 const nameOnlineRow = document.getElementById("nameOnlineRow");
 const leaderGlobal = document.getElementById("leaderGlobal");
+const confettiEl = document.getElementById("confetti");
 
 let board=["","","","","","","","",""];
 let turn="X",gameActive=true,roomId=null,isOnline=false,mySymbol=null,myName="";
@@ -106,7 +120,7 @@ modeEl.onchange=()=>{
   onlineBox.classList.toggle("hidden", !online);
   nameOnlineRow.classList.toggle("hidden", !online);
   namesPVP.classList.toggle("hidden", online);
-  boModeEl.classList.toggle("hidden", online); // ONLINE TANPA BO
+  boModeEl.classList.toggle("hidden", online);
   isOnline = online;
   statusEl.textContent = online ? "Isi nama dulu, lalu Create / Join" : "Siap main!";
 };
@@ -114,16 +128,40 @@ modeEl.onchange=()=>{
 function render(){document.querySelectorAll(".cell").forEach((c,i)=>c.textContent=board[i]);}
 function updateScore(){scoreText.textContent = `Score: ${scoreX} - ${scoreO}`;}
 
-function resetRound(){
+function spawnConfetti(){
+  confettiEl.innerHTML="";
+  for(let i=0;i<80;i++){
+    const p=document.createElement("i");
+    p.style.left=Math.random()*100+"%";
+    p.style.top="-10px";
+    p.style.background=["#0ff","#0f0","#f0f","#ff0"][i%4];
+    p.style.animationDelay=(Math.random()*.5)+"s";
+    confettiEl.appendChild(p);
+  }
+  setTimeout(()=>confettiEl.innerHTML="",1600);
+}
+
+function resetBoard(){
   board=["","","","","","","","",""];
   turn = starter;
-  starter = starter==="X"?"O":"X";
   gameActive=true;
   document.querySelectorAll(".cell").forEach(c=>c.classList.remove("win"));
   render();
-  statusEl.textContent = "Ronde baru! Giliran: " + turn;
+  statusEl.textContent = "Papan di-reset. Giliran: " + turn;
   if(isOnline) syncRoom();
 }
+document.getElementById("btnResetBoard").onclick = resetBoard;
+
+document.getElementById("btnNextRound").onclick = ()=>{
+  starter = starter==="X"?"O":"X";
+  resetBoard();
+};
+
+document.getElementById("btnResetScore").onclick = ()=>{
+  scoreX=0; scoreO=0;
+  updateScore();
+  resetBoard();
+};
 
 function checkWin(){
   for(let p of wins){
@@ -134,14 +172,11 @@ function checkWin(){
   }
   return false;
 }
-
 function getName(p){
   if(modeEl.value==="pvp") return p==="X" ? (nameX.value||"Player A") : (nameO.value||"Player B");
   if(modeEl.value==="bot") return p==="X" ? (nameX.value||"Kamu") : "Bot";
   return p===mySymbol ? myName : "Lawan";
 }
-
-// BOT SUPER JAGO (MINIMAX)
 function minimax(b, isMax){
   if(wins.some(p=>p.every(i=>b[i]==="O"))) return 1;
   if(wins.some(p=>p.every(i=>b[i]==="X"))) return -1;
@@ -167,9 +202,8 @@ function botMove(){
       if(score>best){best=score;move=i;}
     }
   });
-  setTimeout(()=>play(move),300);
+  setTimeout(()=>play(move),250);
 }
-
 function checkBO(){
   const target = Math.ceil(boModeEl.value/2);
   if(scoreX>=target || scoreO>=target){
@@ -178,15 +212,13 @@ function checkBO(){
     gameActive=false;
   }
 }
-
 function play(i){
   if(!gameActive || board[i]) return;
   if(isOnline && turn!==mySymbol) return;
-
   board[i]=turn;
   render();
-
   if(checkWin()){
+    spawnConfetti();
     statusEl.textContent = "🔥 MENANG: " + getName(turn);
     if(turn==="X") scoreX++; else scoreO++;
     updateScore();
@@ -202,15 +234,13 @@ function play(i){
     if(isOnline) syncRoom();
     return;
   }
-
   turn = turn==="X"?"O":"X";
   statusEl.textContent = "Giliran: " + getName(turn);
-
   if(modeEl.value==="bot" && turn==="O") botMove();
   if(isOnline) syncRoom();
 }
 
-// ===== ONLINE FIREBASE =====
+// ===== ONLINE (unchanged) =====
 document.getElementById("btnCreate").onclick = () => {
   myName = document.getElementById("nameOnline").value.trim();
   if(!myName) return alert("Isi nama dulu!");
@@ -220,7 +250,6 @@ document.getElementById("btnCreate").onclick = () => {
   listenRoom();
   alert("Room Code: " + roomId);
 };
-
 document.getElementById("btnJoin").onclick = () => {
   myName = document.getElementById("nameOnline").value.trim();
   roomId = document.getElementById("roomCode").value.trim();
@@ -232,12 +261,10 @@ document.getElementById("btnJoin").onclick = () => {
     listenRoom();
   });
 };
-
 function syncRoom(){
   if(!roomId) return;
   db.ref("rooms/"+roomId).update({ board, turn });
 }
-
 function listenRoom(){
   db.ref("rooms/"+roomId).on("value", snap=>{
     const v = snap.val();
@@ -249,15 +276,10 @@ function listenRoom(){
     statusEl.textContent = `Room ${roomId} | Kamu: ${myName} | Lawan: ${lawan} | Giliran: ${turn}`;
   });
 }
-
-// ===== LEADERBOARD GLOBAL TOP 10 =====
 function saveGlobalWin(name){
   if(!name) return;
   const ref = db.ref("leaderboard/"+name);
-  ref.get().then(s=>{
-    const v = s.val() || 0;
-    ref.set(v+1);
-  });
+  ref.get().then(s=>ref.set((s.val()||0)+1));
 }
 function renderGlobalLB(){
   db.ref("leaderboard").orderByValue().limitToLast(10).on("value", snap=>{
